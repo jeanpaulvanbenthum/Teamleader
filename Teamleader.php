@@ -24,6 +24,7 @@ use \SumoCoders\Teamleader\CustomFields\CustomField;
  */
 class Teamleader
 {
+
     // internal constant to enable/disable debugging
     const DEBUG = false;
 
@@ -74,7 +75,7 @@ class Teamleader
     /**
      * Create an instance
      *
-     * @param string $apiGroup  The apiGroup to use.
+     * @param string $apiGroup The apiGroup to use.
      * @param string $apiSecret The apiKey to use.
      */
     public function __construct($apiGroup, $apiSecret, $sslEnabled = true)
@@ -200,33 +201,35 @@ class Teamleader
      * Make the call
      *
      * @param  string $endPoint The endpoint.
-     * @param  array  $fields   The fields that should be passed.
+     * @param  array  $fields The fields that should be passed.
+     *
      * @return mixed
+     * @throws Exception
      */
     private function doCall($endPoint, array $fields = null)
     {
         // add credentials
-        $fields['api_group'] = $this->getApiGroup();
+        $fields['api_group']  = $this->getApiGroup();
         $fields['api_secret'] = $this->getApiSecret();
 
-        $option = array();
-        $options[CURLOPT_POST] = true;
+        $option                      = array();
+        $options[CURLOPT_POST]       = true;
         $options[CURLOPT_POSTFIELDS] = $fields;
 
         // prepend
         $url = self::API_URL . '/' . $endPoint;
 
         // set options
-        $options[CURLOPT_URL] = $url;
-        $options[CURLOPT_PORT] = self::API_PORT;
-        $options[CURLOPT_USERAGENT] = $this->getUserAgent();
+        $options[CURLOPT_URL]            = $url;
+        $options[CURLOPT_PORT]           = self::API_PORT;
+        $options[CURLOPT_USERAGENT]      = $this->getUserAgent();
         $options[CURLOPT_FOLLOWLOCATION] = true;
         if (!$this->getSslEnabled()) {
             $options[CURLOPT_SSL_VERIFYPEER] = false;
             $options[CURLOPT_SSL_VERIFYHOST] = false;
         }
         $options[CURLOPT_RETURNTRANSFER] = true;
-        $options[CURLOPT_TIMEOUT] = (int) $this->getTimeOut();
+        $options[CURLOPT_TIMEOUT]        = (int) $this->getTimeOut();
 
         // init
         $curl = curl_init();
@@ -236,10 +239,10 @@ class Teamleader
 
         // execute
         $response = curl_exec($curl);
-        $headers = curl_getinfo($curl);
+        $headers  = curl_getinfo($curl);
 
         // fetch errors
-        $errorNumber = curl_errno($curl);
+        $errorNumber  = curl_errno($curl);
         $errorMessage = curl_error($curl);
 
         // error?
@@ -252,10 +255,28 @@ class Teamleader
             // attempt to extract a reason to show in the exception
             $json = @json_decode($response, true);
             if ($json !== false && isset($json['reason'])) {
-                throw new Exception('Teamleader '.$endPoint.' API returned statuscode 400 Bad Request. Reason: '.$json['reason']);
+                throw new Exception('Teamleader ' . $endPoint . ' API returned statuscode 400 Bad Request. Reason: ' . $json['reason'], 400);
             } else {
                 // in case no JSON could be parsed, log the response in the exception
-                throw new Exception('Teamleader '.$endPoint.' API returned statuscode 400 Bad Request. Data returned: '.$response);
+                throw new Exception('Teamleader ' . $endPoint . ' API returned statuscode 400 Bad Request. Data returned: ' . $response, 400);
+            }
+        } elseif ($headers['http_code'] == 401) {
+            // attempt to extract a reason to show in the exception
+            $json = @json_decode($response, true);
+            if ($json !== false && isset($json['reason'])) {
+                throw new Exception('Teamleader ' . $endPoint . ' API returned statuscode 401 Unauthorized. Reason: ' . $json['reason'], 401);
+            } else {
+                // in case no JSON could be parsed, log the response in the exception
+                throw new Exception('Teamleader ' . $endPoint . ' API returned statuscode 401 Unauthorized. Data returned: ' . $response, 401);
+            }
+        } elseif ($headers['http_code'] == 505) {
+            // attempt to extract a reason to show in the exception
+            $json = @json_decode($response, true);
+            if ($json !== false && isset($json['reason'])) {
+                throw new Exception('Teamleader ' . $endPoint . ' API returned statuscode 505 API rate limit reached. Reason: ' . $json['reason'], 505);
+            } else {
+                // in case no JSON could be parsed, log the response in the exception
+                throw new Exception('Teamleader ' . $endPoint . ' API returned statuscode 505 API rate limit reached. Data returned: ' . $response, 505);
             }
         }
 
@@ -342,15 +363,16 @@ class Teamleader
      *                                     will be reused, other tags will be
      *                                     automatically created for you and
      *                                     added to the contact.
-     * @param bool $newsletter
-     * @param bool $autoMergeByName If true, Teamleader will merge this
+     * @param bool       $newsletter
+     * @param bool       $autoMergeByName If true, Teamleader will merge this
      *                                     info into an existing contact with
      *                                     the same forename and surname, if it
      *                                     finds any.
-     * @param bool $autoMergeByEmail If true, Teamleader will merge this
+     * @param bool       $autoMergeByEmail If true, Teamleader will merge this
      *                                     info into an existing contact with
      *                                     the same email address, if it finds
      *                                     any.
+     *
      * @return int
      */
     public function crmAddContact(
@@ -394,6 +416,7 @@ class Teamleader
      *                                  to the contact.
      * @param null|array $tagsToRemove Pass one or more tags. These tags will
      *                                  be removed from the contact.
+     *
      * @return bool
      */
     public function crmUpdateContact(
@@ -402,8 +425,8 @@ class Teamleader
         array $tagsToAdd = null,
         array $tagsToRemove = null
     ) {
-        $fields = $contact->toArrayForApi();
-        $fields['contact_id'] = $contact->getId();
+        $fields                  = $contact->toArrayForApi();
+        $fields['contact_id']    = $contact->getId();
         $fields['track_changes'] = ($trackChanges) ? 1 : 0;
         if ($tagsToAdd) {
             $fields['add_tag_by_string'] = implode(',', $tagsToAdd);
@@ -420,14 +443,15 @@ class Teamleader
     /**
      * Delete a contact
      *
-     * @param int|Contact $contact	can be either an object of type "Contact" or a contact ID
+     * @param int|Contact $contact can be either an object of type "Contact" or a contact ID
+     *
      * @return bool
      */
     public function crmDeleteContact(
         $contact
     ) {
         if ($contact instanceof Contact) {
-            $fields = $contact->toArrayForApi();
+            $fields               = $contact->toArrayForApi();
             $fields['contact_id'] = $contact->getId();
         } else {
             $fields['contact_id'] = (int) $contact;
@@ -440,21 +464,22 @@ class Teamleader
     /**
      * Search for contacts
      *
-     * @param int $amount The amount of contacts returned per
+     * @param int         $amount The amount of contacts returned per
      *                                   request (1-100)
-     * @param int         $page     The current page (first page is 0)
+     * @param int         $page The current page (first page is 0)
      * @param string|null $searchBy A search string. Teamleader will try
      *                                   to match each part of the string to
      *                                   the forename, surname, company name
      *                                   and email address.
-     * @param int|null $modifiedSince Teamleader will only return contacts
+     * @param int|null    $modifiedSince Teamleader will only return contacts
      *                                   that have been added or modified
      *                                   since that timestamp.
+     *
      * @return array of Contact
      */
     public function crmGetContacts($amount = 100, $page = 0, $searchBy = null, $modifiedSince = null)
     {
-        $fields = array();
+        $fields           = array();
         $fields['amount'] = (int) $amount;
         $fields['pageno'] = (int) $page;
 
@@ -466,7 +491,7 @@ class Teamleader
         }
 
         $rawData = $this->doCall('getContacts.php', $fields);
-        $return = array();
+        $return  = array();
 
         if (!empty($rawData)) {
             foreach ($rawData as $row) {
@@ -480,12 +505,13 @@ class Teamleader
     /**
      * Fetch contacts related to a company
      *
-     * @param  int     $id The ID of the company
+     * @param  int $id The ID of the company
+     *
      * @return array   An array of contacts related to the company
      */
     public function crmGetContactsByCompany($id)
     {
-        $fields = array();
+        $fields               = array();
         $fields['company_id'] = (int) $id;
 
         $rawData = $this->doCall('getContactsByCompany.php', $fields);
@@ -496,12 +522,13 @@ class Teamleader
     /**
      * Fetch information about a contact
      *
-     * @param  int     $id The ID of the contact
+     * @param  int $id The ID of the contact
+     *
      * @return Contact
      */
     public function crmGetContact($id)
     {
-        $fields = array();
+        $fields               = array();
         $fields['contact_id'] = (int) $id;
 
         $rawData = $this->doCall('getContact.php', $fields);
@@ -522,18 +549,19 @@ class Teamleader
      *                                       tags will be reused, other tags
      *                                       will be automatically created for
      *                                       you and added to the contact.
-     * @param bool $autoMergeByName If true, Teamleader will merge
+     * @param bool       $autoMergeByName If true, Teamleader will merge
      *                                       this info into an existing
      *                                       company with the same name, if it
      *                                       finds any.
-     * @param bool $autoMergeByEmail If true, Teamleader will merge
+     * @param bool       $autoMergeByEmail If true, Teamleader will merge
      *                                       this info into an existing company
      *                                       with the same email address, if it
      *                                       finds any.
-     * @param bool $autoMergeByVatCode If true, Teamleader will merge
+     * @param bool       $autoMergeByVatCode If true, Teamleader will merge
      *                                       this info into an existing company
      *                                       with the same VAT code, if it
      *                                       finds any.
+     *
      * @return int
      */
     public function crmAddCompany(
@@ -568,8 +596,8 @@ class Teamleader
      *
      * @todo    find a way to update the tags as the api expects
      *
-     * @param Company $company
-     * @param bool    $trackChanges If true, all changes are logged and
+     * @param Company    $company
+     * @param bool       $trackChanges If true, all changes are logged and
      *                                  visible to users in the web-interface.
      * @param null|array $tagsToAdd Pass one or more tags. Existing tags
      *                                  will be reused, other tags will be
@@ -577,6 +605,7 @@ class Teamleader
      *                                  to the contact.
      * @param null|array $tagsToRemove Pass one or more tags. These tags will
      *                                  be removed from the contact.
+     *
      * @return bool
      */
     public function crmUpdateCompany(
@@ -585,8 +614,8 @@ class Teamleader
         array $tagsToAdd = null,
         array $tagsToRemove = null
     ) {
-        $fields = $company->toArrayForApi();
-        $fields['company_id'] = $company->getId();
+        $fields                  = $company->toArrayForApi();
+        $fields['company_id']    = $company->getId();
         $fields['track_changes'] = ($trackChanges) ? 1 : 0;
         if ($tagsToAdd) {
             $fields['add_tag_by_string'] = implode(',', $tagsToAdd);
@@ -603,14 +632,15 @@ class Teamleader
     /**
      * Delete a company
      *
-     * @param int|Company $company	can be either an object of type "Company" or a company Id
+     * @param int|Company $company can be either an object of type "Company" or a company Id
+     *
      * @return bool
      */
     public function crmDeleteCompany(
         $company
     ) {
         if ($company instanceof Company) {
-            $fields = $company->toArrayForApi();
+            $fields               = $company->toArrayForApi();
             $fields['company_id'] = $company->getId();
         } else {
             $fields['company_id'] = (int) $company;
@@ -623,22 +653,23 @@ class Teamleader
     /**
      * Search for companies
      *
-     * @param int $amount The amount of companies returned per
+     * @param int         $amount The amount of companies returned per
      *                                   request (1-100)
-     * @param int         $page     The current page (first page is 0)
+     * @param int         $page The current page (first page is 0)
      * @param string|null $searchBy A search string. Teamleader will try
      *                                   to match each part of the string to
      *                                   the company name
      *                                   and email address.
-     * @param int|null $modifiedSince Teamleader will only return companies
+     * @param int|null    $modifiedSince Teamleader will only return companies
      *                                   that have been added or modified
      *                                   since that timestamp.
      * @param string|null $filterByTag Teamleader will only return companies with this tag.
+     *
      * @return array of Company
      */
     public function crmGetCompanies($amount = 100, $page = 0, $searchBy = null, $modifiedSince = null, $filterByTag = null)
     {
-        $fields = array();
+        $fields           = array();
         $fields['amount'] = (int) $amount;
         $fields['pageno'] = (int) $page;
 
@@ -653,7 +684,7 @@ class Teamleader
         }
 
         $rawData = $this->doCall('getCompanies.php', $fields);
-        $return = array();
+        $return  = array();
 
         if (!empty($rawData)) {
             foreach ($rawData as $row) {
@@ -674,7 +705,7 @@ class Teamleader
      */
     public function crmGetCompany($id)
     {
-        $fields = array();
+        $fields               = array();
         $fields['company_id'] = (int) $id;
 
         $rawData = $this->doCall('getCompany.php', $fields);
@@ -689,10 +720,10 @@ class Teamleader
 
     public function crmLinkContactToCompany(Contact $contact, Company $company, $mode = 'link', $function = null)
     {
-        $fields = array();
+        $fields               = array();
         $fields['contact_id'] = $contact->getId();
         $fields['company_id'] = $company->getId();
-        $fields['mode'] = $mode;
+        $fields['mode']       = $mode;
         if ($function) {
             $fields['function'] = $function;
         }
@@ -710,7 +741,7 @@ class Teamleader
         $customers = array();
 
         $customers['contacts'] = array();
-        $i = 0;
+        $i                     = 0;
         while ($i == 0 || (sizeof($customers['contacts']) != 0 && sizeof($customers['contacts']) % 100 == 0)) {
             foreach ($this->crmGetContacts(100, $i) as $contact) {
                 $customers['contacts'][$contact->getId()] = $contact;
@@ -719,7 +750,7 @@ class Teamleader
         }
 
         $customers['companies'] = array();
-        $i = 0;
+        $i                      = 0;
         while ($i == 0 || (sizeof($customers['companies']) != 0 && sizeof($customers['companies']) % 100 == 0)) {
             foreach ($this->crmGetCompanies(100, $i) as $company) {
                 $customers['companies'][$company->getId()] = $company;
@@ -738,7 +769,16 @@ class Teamleader
     public function crmGetAllCustomFields()
     {
         $custom_fields = array();
-        $types = array('contact', 'company', 'sale', 'project', 'invoice', 'ticket', 'milestone', 'todo');
+        $types         = array(
+            'contact',
+            'company',
+            'sale',
+            'project',
+            'invoice',
+            'ticket',
+            'milestone',
+            'todo'
+        );
 
         foreach ($types as $for) {
             $custom_fields[$for] = $this->crmGetCustomField($for);
@@ -747,17 +787,18 @@ class Teamleader
         return $custom_fields;
     }
 
-     /**
+    /**
      * Fetch information about custom field
      *
-     * @param  string   $for custom field type
+     * @param  string $for custom field type
+     *
      * @return CustomField
      */
     public function crmGetCustomField($for)
     {
-        $for_custom = array();
+        $for_custom        = array();
         $for_custom['for'] = $for;
-        $rawData = $this->doCall('getCustomFields.php', $for_custom);
+        $rawData           = $this->doCall('getCustomFields.php', $for_custom);
 
         $return = array();
 
@@ -766,12 +807,13 @@ class Teamleader
                 $return[] = CustomField::initializeWithRawData($row);
             }
         }
+
         return $return;
     }
 
     public function dealsGetDeal($id)
     {
-        $fields = array();
+        $fields            = array();
         $fields['deal_id'] = (int) $id;
 
         $rawData = $this->doCall('getDeal.php', $fields);
@@ -795,17 +837,17 @@ class Teamleader
     /**
      * Search for deals
      *
-     * @param int    $amount    The amount of deals returned per request (1-100)
-     * @param int    $page      The current page (first page is 0)
-     * @param string $searchBy  A search string. Teamleader will try to search deals matching this string.
+     * @param int    $amount The amount of deals returned per request (1-100)
+     * @param int    $page The current page (first page is 0)
+     * @param string $searchBy A search string. Teamleader will try to search deals matching this string.
      * @param int    $segmentId Teamleader will only return deals in this segment.
-     * @param int    $phaseId   Teamleader will return only deals that are in this phase right now.
+     * @param int    $phaseId Teamleader will return only deals that are in this phase right now.
      *
      * @return Deal
      */
     public function dealsGetDeals($amount = 100, $page = 0, $searchBy = null, $segmentId = null, $phaseId = null)
     {
-        $fields = array();
+        $fields           = array();
         $fields['amount'] = (int) $amount;
         $fields['pageno'] = (int) $page;
 
@@ -820,7 +862,7 @@ class Teamleader
         }
 
         $rawData = $this->doCall('getDeals.php', $fields);
-        $return = array();
+        $return  = array();
 
         if (!empty($rawData)) {
             foreach ($rawData as $row) {
@@ -835,6 +877,7 @@ class Teamleader
      * Adds an opportunity
      *
      * @param  Deal $deal
+     *
      * @return int
      */
     public function opportunitiesAddSale(Deal $deal)
@@ -846,6 +889,7 @@ class Teamleader
      * Adds an opportunity
      *
      * @param  Deal $deal
+     *
      * @return int
      */
     public function dealsAddDeal(Deal $deal)
@@ -859,11 +903,12 @@ class Teamleader
      * Updates a deal
      *
      * @param Deal $deal
+     *
      * @return void
      */
     public function dealsUpdateDeal(Deal $deal)
     {
-        $fields = $deal->toArrayForApi(false);
+        $fields            = $deal->toArrayForApi(false);
         $fields['deal_id'] = (int) $deal->getId();
 
         $this->doCall('updateDeal.php', $fields);
@@ -875,6 +920,7 @@ class Teamleader
      * Adds an invoice
      *
      * @param  Invoice $invoice
+     *
      * @return int
      */
     public function invoicesAddInvoice(Invoice $invoice)
@@ -890,17 +936,18 @@ class Teamleader
     /**
      * Search for invoices
      *
-     * @param int $dateFrom
-     * @param int $dateTo
+     * @param int                  $dateFrom
+     * @param int                  $dateTo
      * @param Contact|Company|null $contactOrCompany
-     * @param bool $deepSearch
+     * @param bool                 $deepSearch
+     *
      * @return array
      */
     public function invoicesGetInvoices($dateFrom, $dateTo, $contactOrCompany = null, $deepSearch = false)
     {
-        $fields = array();
+        $fields              = array();
         $fields['date_from'] = date('d/m/Y', $dateFrom);
-        $fields['date_to'] = date('d/m/Y', $dateTo);
+        $fields['date_to']   = date('d/m/Y', $dateTo);
 
         if ($contactOrCompany !== null) {
             switch (gettype($contactOrCompany)) {
@@ -923,7 +970,7 @@ class Teamleader
         }
 
         $rawData = $this->doCall('getInvoices.php', $fields);
-        $return = array();
+        $return  = array();
 
         if (!empty($rawData)) {
             $allCustomers = $this->crmGetAllCustomers();
@@ -939,11 +986,12 @@ class Teamleader
      * Get a specific invoice by id
      *
      * @param int $id
+     *
      * @return Invoice
      */
     public function invoicesGetInvoice($id)
     {
-        $fields = array();
+        $fields               = array();
         $fields['invoice_id'] = (int) $id;
 
         $rawData = $this->doCall('getInvoice.php', $fields);
@@ -960,11 +1008,12 @@ class Teamleader
      * Get update an invoice
      *
      * @param Invoice $invoice
+     *
      * @return bool
      */
     public function invoicesUpdateInvoice(Invoice $invoice)
     {
-        $fields = $invoice->toArrayForApi();
+        $fields               = $invoice->toArrayForApi();
         $fields['invoice_id'] = $invoice->getId();
 
         $rawData = $this->doCall('updateInvoice.php', $fields);
@@ -976,12 +1025,13 @@ class Teamleader
      * Sets the invoice's payment status to paid
      *
      * @param  Invoice $invoice
+     *
      * @return bool
      */
     public function invoicesSetInvoicePaid(Invoice $invoice)
     {
         $fields['invoice_id'] = $invoice->getId();
-        $rawData = $this->doCall('setInvoicePaid.php', $fields);
+        $rawData              = $this->doCall('setInvoicePaid.php', $fields);
 
         if ($rawData == 'OK') {
             $invoice->setPaid(true);
@@ -996,6 +1046,7 @@ class Teamleader
      * Download a pdf of the invoice
      *
      * @param Invoice $invoice
+     *
      * @return
      */
     public function invoicesDownloadInvoicePDF(Invoice $invoice, $headers = false)
@@ -1011,6 +1062,7 @@ class Teamleader
      * Adds a credit note to an invoice
      *
      * @param  Invoice $invoice
+     *
      * @return int
      */
     public function invoicesAddCreditnote(Creditnote $creditnote)
@@ -1026,10 +1078,11 @@ class Teamleader
     /**
      * Search for creditnotes
      *
-     * @param int $dateFrom
-     * @param int $dateTo
+     * @param int                  $dateFrom
+     * @param int                  $dateTo
      * @param Contact|Company|null $contactOrCompany
-     * @param bool $deepSearch
+     * @param bool                 $deepSearch
+     *
      * @return array
      */
     public function invoicesGetCreditnotes(
@@ -1038,9 +1091,9 @@ class Teamleader
         $contactOrCompany = null,
         $deepSearch = false
     ) {
-        $fields = array();
+        $fields              = array();
         $fields['date_from'] = date('d/m/Y', $dateFrom);
-        $fields['date_to'] = date('d/m/Y', $dateTo);
+        $fields['date_to']   = date('d/m/Y', $dateTo);
 
         if ($contactOrCompany !== null) {
             switch (gettype($contactOrCompany)) {
@@ -1063,7 +1116,7 @@ class Teamleader
         }
 
         $rawData = $this->doCall('getCreditnotes.php', $fields);
-        $return = array();
+        $return  = array();
 
         if (!empty($rawData)) {
             $allCustomers = $this->crmGetAllCustomers();
@@ -1079,11 +1132,12 @@ class Teamleader
      * Get a specific creditnote by id
      *
      * @param int $id
+     *
      * @return Creditnote
      */
     public function invoicesGetCreditnote($id)
     {
-        $fields = array();
+        $fields                  = array();
         $fields['creditnote_id'] = (int) $id;
 
         $rawData = $this->doCall('getCreditnote.php', $fields);
@@ -1100,6 +1154,7 @@ class Teamleader
      * Download a pdf of the creditnote
      *
      * @param Creditnote $creditnote
+     *
      * @return
      */
     public function invoicesDownloadCreditnotePDF(Creditnote $creditnote, $headers = false)
@@ -1115,19 +1170,19 @@ class Teamleader
      * Sends an email invoice reminder
      *
      * @param Invoice $invoice
-     * @param string $to
-     * @param string $subject
-     * @param string $text
+     * @param string  $to
+     * @param string  $subject
+     * @param string  $text
      */
     public function invoicesSendInvoice(Invoice $invoice, $to, $subject, $text)
     {
         return $this->doCall(
             'sendInvoice.php',
             array(
-                'invoice_id' => $invoice->getId(),
-                'email_to' => $to,
+                'invoice_id'    => $invoice->getId(),
+                'email_to'      => $to,
                 'email_subject' => $subject,
-                'email_text' => $text,
+                'email_text'    => $text,
             )
         );
     }
@@ -1136,6 +1191,7 @@ class Teamleader
      * Adds a subscription
      *
      * @param  Subscription $subscription
+     *
      * @return int
      */
     public function subscriptionsAddSubscription(Subscription $subscription)
@@ -1152,11 +1208,12 @@ class Teamleader
      * Add a note
      *
      * @param Note $note
+     *
      * @return bool
      */
     public function notesAddNote(Note $note)
     {
-        $fields = $note->toArrayForApi();
+        $fields  = $note->toArrayForApi();
         $rawData = $this->doCall('addNote.php', $fields);
 
         return ($rawData == 'OK');
@@ -1167,7 +1224,8 @@ class Teamleader
     /**
      * Add a product
      *
-     * @param Product    $product
+     * @param Product $product
+     *
      * @return int
      */
     public function addProduct(Product $product)
@@ -1184,11 +1242,12 @@ class Teamleader
      * Update a product
      *
      * @param Product $product
+     *
      * @return bool
      */
     public function updateProduct(Product $product)
     {
-        $fields = $product->toArrayForApi();
+        $fields               = $product->toArrayForApi();
         $fields['product_id'] = $product->getId();
 
         $rawData = $this->doCall('updateProduct.php', $fields);
@@ -1199,14 +1258,15 @@ class Teamleader
     /**
      * Delete a product
      *
-     * @param int|Product $product	can be either an object of type "Product" or a product Id
+     * @param int|Product $product can be either an object of type "Product" or a product Id
+     *
      * @return bool
      */
     public function deleteProduct($product)
     {
         $fields = array();
         if ($product instanceof Product) {
-            $fields = $product->toArrayForApi();
+            $fields               = $product->toArrayForApi();
             $fields['product_id'] = $product->getId();
         } else {
             $fields['product_id'] = (int) $product;
@@ -1219,21 +1279,22 @@ class Teamleader
     /**
      * Search for products
      *
-     * @param int $amount The amount of products returned per
+     * @param int         $amount The amount of products returned per
      *                                   request (1-100)
-     * @param int         $page     The current page (first page is 0)
+     * @param int         $page The current page (first page is 0)
      * @param string|null $searchBy A search string. Teamleader will try
      *                                   to match each part of the string to
      *                                   the product name
      *                                   and email address.
-     * @param int|null $modifiedSince Teamleader will only return products
+     * @param int|null    $modifiedSince Teamleader will only return products
      *                                   that have been added or modified
      *                                   since that timestamp.
+     *
      * @return array of Product
      */
     public function getProducts($amount = 100, $page = 0, $searchBy = null, $modifiedSince = null)
     {
-        $fields = array();
+        $fields           = array();
         $fields['amount'] = (int) $amount;
         $fields['pageno'] = (int) $page;
 
@@ -1244,7 +1305,7 @@ class Teamleader
             $fields['modifiedsince'] = (int) $modifiedSince;
         }
         $rawData = $this->doCall('getProducts.php', $fields);
-        $return = array();
+        $return  = array();
 
         if (!empty($rawData)) {
             foreach ($rawData as $row) {
@@ -1258,12 +1319,13 @@ class Teamleader
     /**
      * Fetch information about a product
      *
-     * @param  int     $id The ID of the product
+     * @param  int $id The ID of the product
+     *
      * @return product
      */
     public function getProduct($id)
     {
-        $fields = array();
+        $fields               = array();
         $fields['product_id'] = (int) $id;
 
         $rawData = $this->doCall('getProduct.php', $fields);
