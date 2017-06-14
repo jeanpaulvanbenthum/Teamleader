@@ -33,6 +33,16 @@ class Company
     /**
      * @var string
      */
+    private $kvkNummer;
+
+    /**
+     * @var string
+     */
+    private $localBusinessNumber;
+
+    /**
+     * @var string
+     */
     private $businessType;
 
     /**
@@ -423,6 +433,38 @@ class Company
     }
 
     /**
+     * @param string $kvkNummer
+     */
+    public function setKvkNummer($kvkNummer)
+    {
+        $this->kvkNummer = $kvkNummer;
+    }
+
+    /**
+     * @return string
+     */
+    public function getKvkNummer()
+    {
+        return $this->kvkNummer;
+    }
+
+    /**
+     * @param string $localBusinessNumber
+     */
+    public function setLocalBusinessNumber($localBusinessNumber)
+    {
+        $this->localBusinessNumber = $localBusinessNumber;
+    }
+
+    /**
+     * @return string
+     */
+    public function getLocalBusinessNumber()
+    {
+        return $this->localBusinessNumber;
+    }
+
+    /**
      * @param string $telephone
      */
     public function setTelephone($telephone)
@@ -604,8 +646,10 @@ class Company
     /**
      * Initialize a Company with raw data we got from the API
      *
-     * @param  array   $data
+     * @param  array $data
+     *
      * @return Company
+     * @throws Exception
      */
     public static function initializeWithRawData($data)
     {

@@ -667,8 +667,10 @@ class Teamleader
     /**
      * Fetch information about a company
      *
-     * @param  int     $id The ID of the company
-     * @return Contact
+     * @param  int $id The ID of the company
+     *
+     * @return Company
+     * @throws Exception
      */
     public function crmGetCompany($id)
     {
@@ -733,7 +735,7 @@ class Teamleader
      *
      * @return array
      */
-    public function crmGetAllCustomFields() 
+    public function crmGetAllCustomFields()
     {
         $custom_fields = array();
         $types = array('contact', 'company', 'sale', 'project', 'invoice', 'ticket', 'milestone', 'todo');
@@ -741,10 +743,10 @@ class Teamleader
         foreach ($types as $for) {
             $custom_fields[$for] = $this->crmGetCustomField($for);
         }
-   
+
         return $custom_fields;
     }
-    
+
      /**
      * Fetch information about custom field
      *
