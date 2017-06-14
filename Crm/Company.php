@@ -709,6 +709,12 @@ class Company
         if ($this->getTaxCode()) {
             $return['vat_code'] = $this->getTaxCode();
         }
+        if ($this->getKvkNummer()) {
+            $return['kvk_nummer'] = $this->getKvkNummer();
+        }
+        if ($this->getLocalBusinessNumber()) {
+            $return['local_business_number'] = $this->getLocalBusinessNumber();
+        }
         if ($this->getBusinessType()) {
             $return['business_type'] = $this->getBusinessType();
         }
